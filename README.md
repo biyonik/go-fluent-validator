@@ -1569,7 +1569,7 @@ Bu kütüphane şu harika projelerden ilham almıştır:
 ## 📞 İletişim
 
 - **GitHub Issues**: [github.com/biyonik/go-fluent-validator/issues](https://github.com/biyonik/go-fluent-validator/issues)
-- **Email**: [Proje sahibiyle iletişim]
+- **Email**: ahmet.altun60@gmail.com
 
 ---
 
