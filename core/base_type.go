@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"github.com/biyonik/go-fluent-validator/i18n"
 )
 

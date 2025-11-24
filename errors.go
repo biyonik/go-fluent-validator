@@ -61,3 +61,32 @@ func NewFieldError(field, message string) error {
 		Message: message,
 	}
 }
+
+// Custom validator fonksiyonlarında kullanılmak üzere basit bir validation
+// error tipidir. FieldError'dan farklı olarak sadece mesaj içerir, field bilgisi
+// validasyon sistemi tarafından otomatik olarak eklenir.
+type ValidationError struct {
+	Message string
+}
+
+// Error interface implementasyonu
+func (e *ValidationError) Error() string {
+	return e.Message
+}
+
+// NewValidationError
+// -----------------------------------------------------------------------------
+// Custom validator fonksiyonlarında kullanılmak üzere yeni bir ValidationError
+// oluşturur. Bu fonksiyon custom validation'larda hata döndürmek için kullanılır.
+//
+// Örnek kullanım:
+//
+//	v.String().Custom(func(value string) error {
+//	    if value == "forbidden" {
+//	        return core.NewValidationError("Bu değer kullanılamaz")
+//	    }
+//	    return nil
+//	})
+func NewValidationError(message string) error {
+	return &ValidationError{Message: message}
+}

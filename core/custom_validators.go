@@ -38,6 +38,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"regexp"
 )
 
 // CustomValidator, senkron özel doğrulama fonksiyonu tipi

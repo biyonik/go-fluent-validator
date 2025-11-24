@@ -5,7 +5,6 @@ import (
 	"time"
 
 	v "github.com/biyonik/go-fluent-validator"
-	"github.com/biyonik/go-fluent-validator/core"
 )
 
 // TestUuidValidation tests UUID validation
@@ -51,7 +50,7 @@ func TestUuidCustomValidation(t *testing.T) {
 			if uuid == "550e8400-e29b-41d4-a716-446655440000" {
 				return nil
 			}
-			return core.NewValidationError("UUID must be a specific value")
+			return v.NewValidationError("UUID must be a specific value")
 		}),
 	})
 
@@ -117,7 +116,7 @@ func TestIbanCustomValidation(t *testing.T) {
 	schema := v.Make().Shape(map[string]v.Type{
 		"account": v.Iban().Custom(func(iban string) error {
 			if len(iban) < 20 {
-				return core.NewValidationError("IBAN too short")
+				return v.NewValidationError("IBAN too short")
 			}
 			return nil
 		}),
@@ -184,7 +183,7 @@ func TestCreditCardCustomValidation(t *testing.T) {
 	schema := v.Make().Shape(map[string]v.Type{
 		"card": v.CreditCard().Custom(func(card string) error {
 			if card[0] != '4' && card[0] != '5' {
-				return core.NewValidationError("Only Visa and MasterCard accepted")
+				return v.NewValidationError("Only Visa and MasterCard accepted")
 			}
 			return nil
 		}),
@@ -258,7 +257,7 @@ func TestDateCustomValidation(t *testing.T) {
 	schema := v.Make().Shape(map[string]v.Type{
 		"date": v.Date().Format("2006-01-02").Custom(func(date time.Time) error {
 			if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
-				return core.NewValidationError("Date cannot be on weekend")
+				return v.NewValidationError("Date cannot be on weekend")
 			}
 			return nil
 		}),
@@ -326,7 +325,7 @@ func TestObjectCustomValidation(t *testing.T) {
 			firstName, _ := obj["firstName"].(string)
 			lastName, _ := obj["lastName"].(string)
 			if firstName == lastName {
-				return core.NewValidationError("First and last name cannot be the same")
+				return v.NewValidationError("First and last name cannot be the same")
 			}
 			return nil
 		}),
@@ -363,7 +362,7 @@ func TestCrossValidationTiming(t *testing.T) {
 		confirm, _ := data["passwordConfirm"].(string)
 
 		if pass != confirm {
-			return core.NewValidationError("Passwords do not match")
+			return v.NewValidationError("Passwords do not match")
 		}
 		return nil
 	})
