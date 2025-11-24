@@ -33,7 +33,7 @@ import (
 
 var (
 	emailRegex        = regexp.MustCompile(`^[a-zA-Z0-9]+([._+-][a-zA-Z0-9]+)*@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.[a-zA-Z]{2,}$`)
-	urlRegex          = regexp.MustCompile(`^(https?://)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(:[0-9]+)?(/[^\s]*)?(\?[^\s]*)?$`)
+	urlRegex          = regexp.MustCompile(`^https?://[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(:[0-9]+)?(/[^\s]*)?(\?[^\s]*)?$`)
 	alphaRegex        = regexp.MustCompile(`^[a-zA-Z]+$`)
 	alphanumericRegex = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 	numericRegex      = regexp.MustCompile(`^[0-9]+$`)
@@ -62,6 +62,7 @@ type StringType struct {
 	endsWith         *string
 	contains         *string
 	customRegex      *regexp.Regexp
+	regexError       error
 	isMAC            bool
 	isHex            bool
 	isBase64         bool
@@ -233,7 +234,11 @@ func (s *StringType) Contains(substring string) *StringType {
 
 // Regex validates the string against a custom regular expression
 func (s *StringType) Regex(pattern string) *StringType {
-	s.customRegex = regexp.MustCompile(pattern)
+	var err error
+	s.customRegex, err = regexp.Compile(pattern)
+	if err != nil {
+		s.regexError = fmt.Errorf("invalid regex pattern: %w", err)
+	}
 	return s
 }
 
@@ -267,23 +272,23 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 
 	str, ok := value.(string)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı metin tipinde olmalıdır", s.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyString, s.GetLabel(field)))
 		return
 	}
 
 	fieldName := s.GetLabel(field)
 
 	if s.minLength != nil && len(str) < *s.minLength {
-		result.AddError(field, fmt.Sprintf("%s alanı en az %d karakter olmalıdır", fieldName, *s.minLength))
+		result.AddError(field, i18n.Get(i18n.KeyMinLength, fieldName, *s.minLength))
 	}
 
 	if s.maxLength != nil && len(str) > *s.maxLength {
-		result.AddError(field, fmt.Sprintf("%s alanı en fazla %d karakter olmalıdır", fieldName, *s.maxLength))
+		result.AddError(field, i18n.Get(i18n.KeyMaxLength, fieldName, *s.maxLength))
 	}
 
 	if s.emailRegex != nil {
 		if strings.Contains(str, "..") {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyEmail, fieldName))
 			return
 		}
 
@@ -293,36 +298,36 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 			if len(domainParts) > 0 {
 				tld := domainParts[len(domainParts)-1]
 				if len(tld) < 2 {
-					result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+					result.AddError(field, i18n.Get(i18n.KeyEmail, fieldName))
 					return
 				}
 			}
 		}
 
 		if !s.emailRegex.MatchString(str) {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyEmail, fieldName))
 		}
 	}
 
 	if s.urlRegex != nil {
 		if strings.Contains(str, " ") {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyURL, fieldName))
 			return
 		}
 
 		if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyURL, fieldName))
 			return
 		}
 
 		withoutProtocol := strings.TrimPrefix(strings.TrimPrefix(str, "https://"), "http://")
 		if len(withoutProtocol) == 0 {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyURL, fieldName))
 			return
 		}
 
 		if !s.urlRegex.MatchString(str) {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyURL, fieldName))
 		}
 	}
 
@@ -335,7 +340,7 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 			}
 		}
 		if !found {
-			result.AddError(field, fmt.Sprintf("%s alanı şunlardan biri olmalıdır: %v", fieldName, s.allowedValues))
+			result.AddError(field, i18n.Get(i18n.KeyOneOf, fieldName, fmt.Sprintf("%v", s.allowedValues)))
 		}
 	}
 
@@ -347,12 +352,12 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 	}
 	if s.ipVersion != nil {
 		if !rules.IsValidIP(str, *s.ipVersion) {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir IP adresi olmalıdır", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyIP, fieldName))
 		}
 	}
 	if s.phoneCountry != nil {
 		if !rules.IsValidPhoneNumber(str, *s.phoneCountry) {
-			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir %s telefon numarası olmalıdır", fieldName, *s.phoneCountry))
+			result.AddError(field, i18n.Get(i18n.KeyPhone, fieldName, *s.phoneCountry))
 		}
 	}
 
@@ -379,6 +384,11 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 
 	if s.contains != nil && !strings.Contains(str, *s.contains) {
 		result.AddError(field, i18n.Get(i18n.KeyContains, fieldName, *s.contains))
+	}
+
+	if s.regexError != nil {
+		result.AddError(field, fmt.Sprintf("%s: %s", fieldName, s.regexError.Error()))
+		return
 	}
 
 	if s.customRegex != nil && !s.customRegex.MatchString(str) {

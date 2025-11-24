@@ -173,17 +173,17 @@ func (a *ArrayType) Validate(field string, value any, result *core.ValidationRes
 
 	slice, ok := value.([]any)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı dizi (array) tipinde olmalıdır", a.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyArray, a.GetLabel(field)))
 		return
 	}
 
 	fieldName := a.GetLabel(field)
 
 	if a.minLength != nil && len(slice) < *a.minLength {
-		result.AddError(field, fmt.Sprintf("%s alanında en az %d eleman olmalıdır", fieldName, *a.minLength))
+		result.AddError(field, i18n.Get(i18n.KeyMinElements, fieldName, *a.minLength))
 	}
 	if a.maxLength != nil && len(slice) > *a.maxLength {
-		result.AddError(field, fmt.Sprintf("%s alanında en fazla %d eleman olmalıdır", fieldName, *a.maxLength))
+		result.AddError(field, i18n.Get(i18n.KeyMaxElements, fieldName, *a.maxLength))
 	}
 
 	// New validators

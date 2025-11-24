@@ -54,6 +54,7 @@ const (
 	KeyInteger           MessageKey = "validation.integer"
 	KeyNumeric           MessageKey = "validation.numeric"
 	KeyBoolean           MessageKey = "validation.boolean"
+	KeyString            MessageKey = "validation.string"
 	KeyArray             MessageKey = "validation.array"
 	KeyObject            MessageKey = "validation.object"
 	KeyDate              MessageKey = "validation.date"
@@ -151,6 +152,7 @@ func (t *Translator) loadDefaultMessages() {
 		KeyInteger:           "%s must be an integer",
 		KeyNumeric:           "%s must be a numeric value",
 		KeyBoolean:           "%s must be a boolean value",
+		KeyString:            "%s must be a string",
 		KeyArray:             "%s must be an array",
 		KeyObject:            "%s must be an object",
 		KeyDate:              "%s must be a valid date",
@@ -215,6 +217,7 @@ func (t *Translator) loadDefaultMessages() {
 		KeyInteger:           "%s alanı tamsayı olmalıdır",
 		KeyNumeric:           "%s alanı sayısal bir değer olmalıdır",
 		KeyBoolean:           "%s alanı boolean tipinde olmalıdır",
+		KeyString:            "%s alanı metin tipinde olmalıdır",
 		KeyArray:             "%s alanı dizi (array) tipinde olmalıdır",
 		KeyObject:            "%s alanı nesne (object) tipinde olmalıdır",
 		KeyDate:              "%s alanı geçerli bir tarih olmalıdır",
