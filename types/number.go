@@ -1,0 +1,165 @@
+package types
+
+import (
+	"fmt"
+	"github.com/biyonik/go-fluent-validator/core"
+)
+
+// NumberType
+//
+// Sayısal değerleri doğrulamak için kullanılan tiptir.
+// Float veya integer değerleri kabul eder ve opsiyonel olarak
+// minimum, maksimum veya tamsayı (integer) kısıtlamaları eklenebilir.
+//
+// Özellikler:
+//   - float64 veya int tipinde değer kabul eder
+//   - Min() ve Max() ile değer aralığı kısıtlanabilir
+//   - Integer() ile yalnızca tamsayı değerler kabul edilir
+//   - Required() ile boş geçilemez kılınabilir
+//
+// Kullanım alanları:
+//   - Form ve API doğrulamaları
+//   - Finansal veya sayısal verilerin kontrolü
+//
+// Yazar Bilgileri:
+//   - @author  Ahmet Altun
+//   - @github  https://github.com/biyonik
+//   - @linkedin https://linkedin.com/in/biyonik
+//   - @email   ahmet.altun60@gmail.com
+type NumberType struct {
+	core.BaseType
+	min       *float64
+	max       *float64
+	isInteger bool
+}
+
+// Required, alanın boş geçilemeyeceğini belirtir.
+//
+// Döndürür:
+//   - *NumberType
+func (n *NumberType) Required() *NumberType {
+	n.SetRequired()
+	return n
+}
+
+// Label, doğrulama hatalarında gösterilecek kullanıcı dostu alan adını belirler.
+//
+// Parametreler:
+//   - label (string): kullanıcıya gösterilecek isim
+//
+// Döndürür:
+//   - *NumberType
+func (n *NumberType) Label(label string) *NumberType {
+	n.SetLabel(label)
+	return n
+}
+
+// Default, alanın varsayılan değerini belirler.
+//
+// Parametreler:
+//   - value (any): int, float32 veya float64
+//
+// Döndürür:
+//   - *NumberType
+func (n *NumberType) Default(value any) *NumberType {
+	switch v := value.(type) {
+	case int:
+		n.SetDefault(float64(v))
+	case float64:
+		n.SetDefault(v)
+	case float32:
+		n.SetDefault(float64(v))
+	default:
+		n.SetDefault(value)
+	}
+	return n
+}
+
+// Min, alanın alabileceği minimum değeri belirler.
+//
+// Parametreler:
+//   - val (float64): minimum değer
+//
+// Döndürür:
+//   - *NumberType
+func (n *NumberType) Min(val float64) *NumberType {
+	n.min = &val
+	return n
+}
+
+// Max, alanın alabileceği maksimum değeri belirler.
+//
+// Parametreler:
+//   - val (float64): maksimum değer
+//
+// Döndürür:
+//   - *NumberType
+func (n *NumberType) Max(val float64) *NumberType {
+	n.max = &val
+	return n
+}
+
+// Integer, alanın yalnızca tamsayı değer almasını zorunlu kılar.
+//
+// Döndürür:
+//   - *NumberType
+func (n *NumberType) Integer() *NumberType {
+	n.isInteger = true
+	return n
+}
+
+// Validate, alanın sayısal geçerliliğini kontrol eder.
+//
+// İşlem sırası:
+//  1. BaseType doğrulamaları (required, nullable)
+//  2. Tip kontrolü (int, float32, float64)
+//  3. Integer kısıtlaması (opsiyonel)
+//  4. Min ve Max kontrolleri (opsiyonel)
+//
+// Parametreler:
+//   - field (string): alan adı
+//   - value (any): doğrulanacak değer
+//   - result (*core.ValidationResult): doğrulama sonucu
+func (n *NumberType) Validate(field string, value any, result *core.ValidationResult) {
+	n.BaseType.Validate(field, value, result)
+	if result.HasErrors() {
+		return
+	}
+	if value == nil {
+		return
+	}
+
+	var num float64
+	var ok bool
+
+	switch v := value.(type) {
+	case int:
+		num = float64(v)
+		ok = true
+	case float64:
+		num = v
+		ok = true
+	case float32:
+		num = float64(v)
+		ok = true
+	default:
+		ok = false
+	}
+
+	fieldName := n.GetLabel(field)
+
+	if !ok {
+		result.AddError(field, fmt.Sprintf("%s alanı sayısal bir değer olmalıdır", fieldName))
+		return
+	}
+
+	if n.isInteger && num != float64(int64(num)) {
+		result.AddError(field, fmt.Sprintf("%s alanı tamsayı olmalıdır", fieldName))
+	}
+	if n.min != nil && num < *n.min {
+		result.AddError(field, fmt.Sprintf("%s alanı %v değerinden küçük olamaz", fieldName, *n.min))
+	}
+	if n.max != nil && num > *n.max {
+		result.AddError(field, fmt.Sprintf("%s alanı %v değerinden büyük olamaz", fieldName, *n.max))
+	}
+}
