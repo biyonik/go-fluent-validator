@@ -41,6 +41,7 @@ import (
 // -----------------------------------------------------------------------------
 type BooleanType struct {
 	core.BaseType
+	customValidation *core.CustomValidation
 }
 
 // Required, ilgili boolean alanın zorunlu olduğunu işaretler.
@@ -62,6 +63,35 @@ func (b *BooleanType) Label(label string) *BooleanType {
 // Veri gelmediğinde veya boş olduğunda bu değer otomatik olarak atanır.
 func (b *BooleanType) Default(value bool) *BooleanType {
 	b.SetDefault(value)
+	return b
+}
+
+func (b *BooleanType) Custom(validator func(bool) error) *BooleanType {
+	if b.customValidation == nil {
+		b.customValidation = core.NewCustomValidation()
+	}
+
+	b.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		boolVal, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("value must be boolean")
+		}
+
+		return validator(boolVal)
+	})
+
+	return b
+}
+
+func (b *BooleanType) AddRule(rule core.Rule) *BooleanType {
+	if b.customValidation == nil {
+		b.customValidation = core.NewCustomValidation()
+	}
+	b.customValidation.AddRule(rule)
 	return b
 }
 

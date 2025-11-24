@@ -29,17 +29,23 @@ import (
 	"github.com/biyonik/go-fluent-validator/rules"
 )
 
+var (
+	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9]+([._+-][a-zA-Z0-9]+)*@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.[a-zA-Z]{2,}$`)
+	urlRegex   = regexp.MustCompile(`^(https?://)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(:[0-9]+)?(/[^\s]*)?(\?[^\s]*)?$`)
+)
+
 // StringType, string tipindeki veriler için doğrulama ve dönüşüm kurallarını tutar.
 type StringType struct {
 	core.BaseType
-	minLength     *int
-	maxLength     *int
-	emailRegex    *regexp.Regexp
-	urlRegex      *regexp.Regexp
-	allowedValues []string
-	passwordRules *rules.PasswordRules
-	ipVersion     *int
-	phoneCountry  *string
+	minLength        *int
+	maxLength        *int
+	emailRegex       *regexp.Regexp
+	urlRegex         *regexp.Regexp
+	allowedValues    []string
+	passwordRules    *rules.PasswordRules
+	ipVersion        *int
+	phoneCountry     *string
+	customValidation *core.CustomValidation
 }
 
 // Required, alanın zorunlu olmasını sağlar.
@@ -74,13 +80,13 @@ func (s *StringType) Max(length int) *StringType {
 
 // Email, alanın e-posta formatında olmasını sağlar.
 func (s *StringType) Email() *StringType {
-	s.emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	s.emailRegex = emailRegex
 	return s
 }
 
 // URL, alanın URL formatında olmasını sağlar.
 func (s *StringType) URL() *StringType {
-	s.urlRegex = regexp.MustCompile(`^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$`)
+	s.urlRegex = urlRegex
 	return s
 }
 
@@ -153,6 +159,23 @@ func (s *StringType) Password(options ...PasswordOption) *StringType {
 	return s
 }
 
+// Custom adds a custom validation function
+func (s *StringType) Custom(validator func(string) error) *StringType {
+	if s.customValidation == nil {
+		s.customValidation = core.NewCustomValidation()
+	}
+
+	s.customValidation.AddSync(func(value any) error {
+		str, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("value must be string")
+		}
+		return validator(str)
+	})
+
+	return s
+}
+
 // Validate, string değer üzerinde tüm kuralları uygular ve hata durumlarını result'a ekler.
 func (s *StringType) Validate(field string, value any, result *core.ValidationResult) {
 	s.BaseType.Validate(field, value, result)
@@ -174,12 +197,69 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 	if s.minLength != nil && len(str) < *s.minLength {
 		result.AddError(field, fmt.Sprintf("%s alanı en az %d karakter olmalıdır", fieldName, *s.minLength))
 	}
+
 	if s.maxLength != nil && len(str) > *s.maxLength {
 		result.AddError(field, fmt.Sprintf("%s alanı en fazla %d karakter olmalıdır", fieldName, *s.maxLength))
 	}
-	if s.emailRegex != nil && !s.emailRegex.MatchString(str) {
-		result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+
+	if s.emailRegex != nil {
+		if strings.Contains(str, "..") {
+			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+			return
+		}
+
+		parts := strings.Split(str, "@")
+		if len(parts) == 2 {
+			domainParts := strings.Split(parts[1], ".")
+			if len(domainParts) > 0 {
+				tld := domainParts[len(domainParts)-1]
+				if len(tld) < 2 {
+					result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+					return
+				}
+			}
+		}
+
+		if !s.emailRegex.MatchString(str) {
+			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir e-posta formatında değil", fieldName))
+		}
 	}
+
+	if s.urlRegex != nil {
+		if strings.Contains(str, " ") {
+			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			return
+		}
+
+		if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") {
+			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			return
+		}
+
+		withoutProtocol := strings.TrimPrefix(strings.TrimPrefix(str, "https://"), "http://")
+		if len(withoutProtocol) == 0 {
+			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+			return
+		}
+
+		if !s.urlRegex.MatchString(str) {
+			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir URL formatında değil", fieldName))
+		}
+	}
+
+	if len(s.allowedValues) > 0 {
+		found := false
+		for _, allowed := range s.allowedValues {
+			if str == allowed {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.AddError(field, fmt.Sprintf("%s alanı şunlardan biri olmalıdır: %v", fieldName, s.allowedValues))
+		}
+	}
+
 	if s.passwordRules != nil && str != "" {
 		passwordErrors := rules.ValidatePassword(str, s.passwordRules)
 		for _, err := range passwordErrors {
@@ -195,5 +275,9 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 		if !rules.IsValidPhoneNumber(str, *s.phoneCountry) {
 			result.AddError(field, fmt.Sprintf("%s alanı geçerli bir %s telefon numarası olmalıdır", fieldName, *s.phoneCountry))
 		}
+	}
+
+	if s.customValidation != nil && s.customValidation.HasValidators() {
+		s.customValidation.ValidateSync(field, value, result)
 	}
 }
