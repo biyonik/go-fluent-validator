@@ -54,7 +54,7 @@ func HasTurkishChars(text string) bool {
 
 // IsValidDomain
 // -----------------------------------------------------------------------------
-// Bu fonksiyon, verilen domain string'inin geçerli olup olmadığını kontrol eder.
+// Bu fonksiyon, verilen domain string'inin RFC 1035 uyumlu olup olmadığını kontrol eder.
 //
 // Parametreler:
 //   - domain: kontrol edilecek alan adı
@@ -64,13 +64,26 @@ func HasTurkishChars(text string) bool {
 //   - Eğer allowSubdomain = true → blog.example.com gibi alt alan adları kabul edilir.
 //   - Eğer allowSubdomain = false → yalnızca example.com gibi kök alan adları kabul edilir.
 //
-// Bu yapı, PHP'deki domain doğrulama regex'inin sadeleştirilmiş Go karşılığıdır.
+// RFC 1035 Kuralları:
+//   - Her label (domain parçası) alfanumerik karakterle başlamalı ve bitmeli
+//   - Ortada tire (-) olabilir ama başta/sonda olamaz
+//   - Alt çizgi (_) DNS'de geçerli değildir
+//   - TLD en az 2 karakter olmalı
 func IsValidDomain(domain string, allowSubdomain bool) bool {
+	// RFC 1035: label must start and end with alphanumeric, hyphens only in middle
+	// Pattern breakdown:
+	// [a-zA-Z0-9]           - must start with alphanumeric
+	// ([a-zA-Z0-9-]*[a-zA-Z0-9])? - optional middle chars (can include hyphens) ending with alphanumeric
+	// This ensures no hyphens at start or end of labels
+
 	var pattern *regexp.Regexp
 	if allowSubdomain {
-		pattern = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$`)
+		// Allows multiple labels (subdomains)
+		// Each label: starts with alphanumeric, optionally has middle chars with hyphens, ends with alphanumeric
+		pattern = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
 	} else {
-		pattern = regexp.MustCompile(`^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$`)
+		// Single domain level (no subdomains): domain.tld
+		pattern = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$`)
 	}
 	return pattern.MatchString(domain)
 }
