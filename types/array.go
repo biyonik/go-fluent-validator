@@ -41,9 +41,10 @@ import (
 // özellikleri içerir.
 type ArrayType struct {
 	core.BaseType
-	minLength     *int      // Minimum eleman sayısı
-	maxLength     *int      // Maksimum eleman sayısı
-	elementSchema core.Type // Her bir elemanın uyacağı şema
+	minLength        *int      // Minimum eleman sayısı
+	maxLength        *int      // Maksimum eleman sayısı
+	elementSchema    core.Type // Her bir elemanın uyacağı şema
+	customValidation *core.CustomValidation
 }
 
 // Required, alanın zorunlu olduğunu belirtir.
@@ -107,6 +108,35 @@ func (a *ArrayType) Transform(value any) (any, error) {
 	return slice, nil
 }
 
+func (a *ArrayType) Custom(validator func([]any) error) *ArrayType {
+	if a.customValidation == nil {
+		a.customValidation = core.NewCustomValidation()
+	}
+
+	a.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		arr, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("value must be array")
+		}
+
+		return validator(arr)
+	})
+
+	return a
+}
+
+func (a *ArrayType) AddRule(rule core.Rule) *ArrayType {
+	if a.customValidation == nil {
+		a.customValidation = core.NewCustomValidation()
+	}
+	a.customValidation.AddRule(rule)
+	return a
+}
+
 // Validate, dizinin uzunluk doğrulamasını ve eleman doğrulamasını yapar.
 // Hatalar, `field[0]`, `field[1]` formatında detaylı bir şekilde işlenir.
 func (a *ArrayType) Validate(field string, value any, result *core.ValidationResult) {
@@ -131,6 +161,10 @@ func (a *ArrayType) Validate(field string, value any, result *core.ValidationRes
 	}
 	if a.maxLength != nil && len(slice) > *a.maxLength {
 		result.AddError(field, fmt.Sprintf("%s alanında en fazla %d eleman olmalıdır", fieldName, *a.maxLength))
+	}
+
+	if a.customValidation != nil && a.customValidation.HasValidators() {
+		a.customValidation.ValidateSync(field, value, result)
 	}
 
 	if a.elementSchema != nil {

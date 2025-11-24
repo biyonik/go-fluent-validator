@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	"github.com/biyonik/go-fluent-validator/core"
 )
 
@@ -28,9 +29,10 @@ import (
 //   - @email   ahmet.altun60@gmail.com
 type NumberType struct {
 	core.BaseType
-	min       *float64
-	max       *float64
-	isInteger bool
+	min              *float64
+	max              *float64
+	isInteger        bool
+	customValidation *core.CustomValidation
 }
 
 // Required, alanın boş geçilemeyeceğini belirtir.
@@ -108,6 +110,50 @@ func (n *NumberType) Integer() *NumberType {
 	return n
 }
 
+func (n *NumberType) Custom(validator func(float64) error) *NumberType {
+	if n.customValidation == nil {
+		n.customValidation = core.NewCustomValidation()
+	}
+
+	n.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		var num float64
+		switch v := value.(type) {
+		case int:
+			num = float64(v)
+		case int8:
+			num = float64(v)
+		case int16:
+			num = float64(v)
+		case int32:
+			num = float64(v)
+		case int64:
+			num = float64(v)
+		case float32:
+			num = float64(v)
+		case float64:
+			num = v
+		default:
+			return fmt.Errorf("value must be number")
+		}
+
+		return validator(num)
+	})
+
+	return n
+}
+
+func (n *NumberType) AddRule(rule core.Rule) *NumberType {
+	if n.customValidation == nil {
+		n.customValidation = core.NewCustomValidation()
+	}
+	n.customValidation.AddRule(rule)
+	return n
+}
+
 // Validate, alanın sayısal geçerliliğini kontrol eder.
 //
 // İşlem sırası:
@@ -136,6 +182,18 @@ func (n *NumberType) Validate(field string, value any, result *core.ValidationRe
 	case int:
 		num = float64(v)
 		ok = true
+	case int8:
+		num = float64(v)
+		ok = true
+	case int16:
+		num = float64(v)
+		ok = true
+	case int32:
+		num = float64(v)
+		ok = true
+	case int64:
+		num = float64(v)
+		ok = true
 	case float64:
 		num = v
 		ok = true
@@ -161,5 +219,9 @@ func (n *NumberType) Validate(field string, value any, result *core.ValidationRe
 	}
 	if n.max != nil && num > *n.max {
 		result.AddError(field, fmt.Sprintf("%s alanı %v değerinden büyük olamaz", fieldName, *n.max))
+	}
+
+	if n.customValidation != nil && n.customValidation.HasValidators() {
+		n.customValidation.ValidateSync(field, value, result)
 	}
 }

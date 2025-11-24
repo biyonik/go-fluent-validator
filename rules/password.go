@@ -56,6 +56,10 @@ type PasswordRules struct {
 var commonPasswords = map[string]bool{
 	"password": true, "123456": true, "qwerty": true, "111111": true, "abc123": true,
 	"letmein": true, "admin": true, "welcome": true, "monkey": true, "dragon": true,
+	"password123":  true,
+	"12345678":     true,
+	"password1":    true,
+	"password123!": true,
 }
 
 // keyboardPatterns

@@ -185,18 +185,21 @@ func (vs *ValidationSchema) Validate(data map[string]any) *core.ValidationResult
 		typ.Validate(field, transformedData[field], result)
 	}
 
-	// 3) Koşullu şemalar
 	if len(vs.conditionalRules) > 0 {
 		for _, rule := range vs.conditionalRules {
 			val, exists := transformedData[rule.field]
 			if exists && val == rule.expectedValue {
 				subSchema := rule.callback()
-				subResult := subSchema.Validate(transformedData)
+				subResult := subSchema.Validate(data)
 				if subResult.HasErrors() {
 					for f, msgs := range subResult.Errors() {
 						for _, msg := range msgs {
 							result.AddError(f, msg)
 						}
+					}
+				} else {
+					for k, v := range subResult.ValidData() {
+						transformedData[k] = v
 					}
 				}
 			}
