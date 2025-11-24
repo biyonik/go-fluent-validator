@@ -207,11 +207,11 @@ func (vs *ValidationSchema) Validate(data map[string]any) *core.ValidationResult
 	}
 
 	// 4) Cross-field validation
-	if !result.HasErrors() {
-		for _, fn := range vs.crossValidators {
-			if err := fn(transformedData); err != nil {
-				result.AddError("_cross_validation", err.Error())
-			}
+	// Run cross-validation regardless of field-level errors
+	// This ensures important cross-field checks (like password confirmation) always run
+	for _, fn := range vs.crossValidators {
+		if err := fn(transformedData); err != nil {
+			result.AddError("_cross_validation", err.Error())
 		}
 	}
 

@@ -1,6 +1,9 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/biyonik/go-fluent-validator/i18n"
+)
 
 // -----------------------------------------------------------------------------
 // BaseType
@@ -130,11 +133,11 @@ func (b *BaseType) Validate(field string, value any, result *ValidationResult) {
 	fieldName := b.GetLabel(field)
 	if b.isRequired {
 		if value == nil {
-			result.AddError(field, fmt.Sprintf("%s alanı zorunludur", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyRequired, fieldName))
 			return
 		}
 		if str, ok := value.(string); ok && str == "" {
-			result.AddError(field, fmt.Sprintf("%s alanı zorunludur", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyRequired, fieldName))
 			return
 		}
 	}

@@ -356,15 +356,21 @@ func NewRegexRule(pattern, message string) Rule {
 
 // Validate, regex kontrolü yapar
 func (r *RegexRule) Validate(value any) error {
-	// Bu basitleştirilmiş bir örnek
-	// Gerçek implementasyonda regexp.MustCompile kullanılmalı
 	str, ok := value.(string)
 	if !ok {
 		return fmt.Errorf("value must be string")
 	}
 
-	// Pattern matching logic buraya gelecek
-	_ = str // placeholder
+	// Regex pattern'i compile et
+	regex, err := regexp.Compile(r.pattern)
+	if err != nil {
+		return fmt.Errorf("invalid regex pattern: %w", err)
+	}
+
+	// Pattern matching kontrolü
+	if !regex.MatchString(str) {
+		return fmt.Errorf("%s", r.message)
+	}
 
 	return nil
 }

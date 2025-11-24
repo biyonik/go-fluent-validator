@@ -240,18 +240,18 @@ func (n *NumberType) Validate(field string, value any, result *core.ValidationRe
 	fieldName := n.GetLabel(field)
 
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı sayısal bir değer olmalıdır", fieldName))
+		result.AddError(field, i18n.Get(i18n.KeyNumeric, fieldName))
 		return
 	}
 
 	if n.isInteger && num != float64(int64(num)) {
-		result.AddError(field, fmt.Sprintf("%s alanı tamsayı olmalıdır", fieldName))
+		result.AddError(field, i18n.Get(i18n.KeyInteger, fieldName))
 	}
 	if n.min != nil && num < *n.min {
-		result.AddError(field, fmt.Sprintf("%s alanı %v değerinden küçük olamaz", fieldName, *n.min))
+		result.AddError(field, i18n.Get(i18n.KeyMin, fieldName, *n.min))
 	}
 	if n.max != nil && num > *n.max {
-		result.AddError(field, fmt.Sprintf("%s alanı %v değerinden büyük olamaz", fieldName, *n.max))
+		result.AddError(field, i18n.Get(i18n.KeyMax, fieldName, *n.max))
 	}
 
 	// New validators

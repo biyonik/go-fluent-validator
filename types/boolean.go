@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 )
 
 // -----------------------------------------------------------------------------
@@ -100,6 +101,7 @@ func (b *BooleanType) AddRule(rule core.Rule) *BooleanType {
 // 2. Gelen değer nil ise (zorunlu değilse) işlem durdurulur.
 // 3. Gelen değerin gerçek bir boolean olup olmadığı kontrol edilir.
 // 4. Tip uyumsuzluğunda ValidationResult içine kullanıcı dostu bir hata eklenir.
+// 5. Custom validators varsa çalıştırır.
 func (b *BooleanType) Validate(field string, value any, result *core.ValidationResult) {
 	b.BaseType.Validate(field, value, result)
 	if result.HasErrors() {
@@ -112,6 +114,11 @@ func (b *BooleanType) Validate(field string, value any, result *core.ValidationR
 
 	_, ok := value.(bool)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı boolean tipinde olmalıdır", b.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyBoolean, b.GetLabel(field)))
+		return
+	}
+
+	if b.customValidation != nil && b.customValidation.HasValidators() {
+		b.customValidation.ValidateSync(field, value, result)
 	}
 }

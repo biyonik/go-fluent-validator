@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 	"github.com/biyonik/go-fluent-validator/rules"
 )
 
@@ -33,7 +34,8 @@ import (
 //   - @email   admin@biyonik.dev
 type CreditCardType struct {
 	core.BaseType
-	cardType string // Örn: "visa", "mastercard", "amex" vb.
+	cardType         string // Örn: "visa", "mastercard", "amex" vb.
+	customValidation *core.CustomValidation
 }
 
 // Required işareti, alanın boş bırakılamayacağını belirtir.
@@ -72,6 +74,37 @@ func (c *CreditCardType) Type(typ string) *CreditCardType {
 	return c
 }
 
+// Custom adds a custom validation function
+func (c *CreditCardType) Custom(validator func(string) error) *CreditCardType {
+	if c.customValidation == nil {
+		c.customValidation = core.NewCustomValidation()
+	}
+
+	c.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		strVal, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("value must be string")
+		}
+
+		return validator(strVal)
+	})
+
+	return c
+}
+
+// AddRule adds a custom validation rule
+func (c *CreditCardType) AddRule(rule core.Rule) *CreditCardType {
+	if c.customValidation == nil {
+		c.customValidation = core.NewCustomValidation()
+	}
+	c.customValidation.AddRule(rule)
+	return c
+}
+
 // Validate, kredi kartı numarasının geçerliliğini kontrol eder.
 //
 // Gerçekleştirilen kontroller:
@@ -100,14 +133,16 @@ func (c *CreditCardType) Validate(field string, value any, result *core.Validati
 	// Değerin string olması gerekir
 	str, ok := value.(string)
 	if !ok {
-		result.AddError(field,
-			fmt.Sprintf("%s alanı metin tipinde olmalıdır", c.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyString, c.GetLabel(field)))
 		return
 	}
 
 	// Kredi kartı doğrulaması (format + Luhn + kart markası kontrolü)
 	if !rules.IsValidCreditCard(str, c.cardType) {
-		result.AddError(field,
-			fmt.Sprintf("%s alanı geçerli bir kredi kartı numarası olmalıdır", c.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyCreditCard, c.GetLabel(field)))
+	}
+
+	if c.customValidation != nil && c.customValidation.HasValidators() {
+		c.customValidation.ValidateSync(field, value, result)
 	}
 }
