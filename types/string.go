@@ -50,11 +50,12 @@ type StringType struct {
 	emailRegex       *regexp.Regexp
 	urlRegex         *regexp.Regexp
 	allowedValues    []string
+	disallowedValues []string
 	passwordRules    *rules.PasswordRules
 	ipVersion        *int
+	ipVersionStr     *string
 	phoneCountry     *string
 	customValidation *core.CustomValidation
-	// New validators
 	isAlpha          bool
 	isAlphanumeric   bool
 	isNumeric        bool
@@ -117,12 +118,30 @@ func (s *StringType) OneOf(values []string) *StringType {
 }
 
 // IP, alanın IP adresi formatında olmasını sağlar.
-func (s *StringType) IP(version ...int) *StringType {
-	v := 0
-	if len(version) > 0 {
-		v = version[0]
+func (s *StringType) IP(version ...any) *StringType {
+	if len(version) == 0 {
+		v := 0
+		s.ipVersion = &v
+		return s
 	}
-	s.ipVersion = &v
+
+	switch v := version[0].(type) {
+	case string:
+		s.ipVersionStr = &v
+		switch v {
+		case "v4", "4":
+			intVer := 4
+			s.ipVersion = &intVer
+		case "v6", "6":
+			intVer := 6
+			s.ipVersion = &intVer
+		default:
+			intVer := 0
+			s.ipVersion = &intVer
+		}
+	case int:
+		s.ipVersion = &v
+	}
 	return s
 }
 
@@ -260,6 +279,19 @@ func (s *StringType) Base64() *StringType {
 	return s
 }
 
+// Length ensures the string has a specific length
+func (s *StringType) Length(length int) *StringType {
+	s.minLength = &length
+	s.maxLength = &length
+	return s
+}
+
+// NoOneOf ensures the string is not one of the given values
+func (s *StringType) NotOneOf(values []string) *StringType {
+	s.disallowedValues = values
+	return s
+}
+
 // Validate, string değer üzerinde tüm kuralları uygular ve hata durumlarını result'a ekler.
 func (s *StringType) Validate(field string, value any, result *core.ValidationResult) {
 	s.BaseType.Validate(field, value, result)
@@ -341,6 +373,15 @@ func (s *StringType) Validate(field string, value any, result *core.ValidationRe
 		}
 		if !found {
 			result.AddError(field, i18n.Get(i18n.KeyOneOf, fieldName, fmt.Sprintf("%v", s.allowedValues)))
+		}
+	}
+
+	if len(s.disallowedValues) > 0 {
+		for _, disallowed := range s.disallowedValues {
+			if str == disallowed {
+				result.AddError(field, i18n.Get(i18n.KeyNotOneOf, fieldName, fmt.Sprintf("%v", s.disallowedValues)))
+				break
+			}
 		}
 	}
 
