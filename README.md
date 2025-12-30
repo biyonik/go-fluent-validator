@@ -1262,7 +1262,6 @@ schema.When("accountType", "business", func() v.Schema {
 
 ## 🛣️ Roadmap
 
-- [ ] Support for async validators
 - [ ] Schema composition and reuse helpers
 - [ ] JSON Schema export
 - [ ] OpenAPI schema generation
