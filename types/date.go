@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 )
 
 // DateType
@@ -18,7 +19,8 @@ import (
 //   - string veya time.Time değerlerini kabul eder
 //   - Kullanıcı özel tarih formatı belirleyebilir (Go time layout formatı)
 //   - min() ve max() ile tarih aralığı doğrulaması yapılabilir
-//   - Varsayılan format “2006-01-02” olarak ayarlanmıştır
+//   - Before() ve After() ile tarih karşılaştırması yapılabilir
+//   - Varsayılan format "2006-01-02" olarak ayarlanmıştır
 //
 // Bu tip genellikle API validasyonlarında, form verilerinde, DTO modellerinde
 // tarih alanlarının kontrollü ve güvenli bir şekilde işlenmesi için kullanılır.
@@ -30,9 +32,12 @@ import (
 //   - @email   ahmet.altun60@gmail.com
 type DateType struct {
 	core.BaseType
-	format     string  // Beklenen tarih formatı (Go time layout)
-	minDateStr *string // Minimum tarih sınırı (string formatında)
-	maxDateStr *string // Maksimum tarih sınırı (string formatında)
+	format           string
+	minDateStr       *string
+	maxDateStr       *string
+	beforeDate       *time.Time
+	afterDate        *time.Time
+	customValidation *core.CustomValidation
 }
 
 // Required, alanın boş geçilemeyeceğini belirtir.
@@ -104,6 +109,61 @@ func (d *DateType) Max(dateStr string) *DateType {
 	return d
 }
 
+// Before, alanın belirtilen tarihten önce olmasını sağlar.
+//
+// Parametreler:
+//   - date (time.Time): Maksimum tarih (bu tarihten önce olmalı)
+//
+// Döndürür:
+//   - *DateType
+func (d *DateType) Before(date time.Time) *DateType {
+	d.beforeDate = &date
+	return d
+}
+
+// After, alanın belirtilen tarihten sonra olmasını sağlar.
+//
+// Parametreler:
+//   - date (time.Time): Minimum tarih (bu tarihten sonra olmalı)
+//
+// Döndürür:
+//   - *DateType
+func (d *DateType) After(date time.Time) *DateType {
+	d.afterDate = &date
+	return d
+}
+
+// Custom adds a custom validation function
+func (d *DateType) Custom(validator func(time.Time) error) *DateType {
+	if d.customValidation == nil {
+		d.customValidation = core.NewCustomValidation()
+	}
+
+	d.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		dateVal, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("value must be time.Time")
+		}
+
+		return validator(dateVal)
+	})
+
+	return d
+}
+
+// AddRule adds a custom validation rule
+func (d *DateType) AddRule(rule core.Rule) *DateType {
+	if d.customValidation == nil {
+		d.customValidation = core.NewCustomValidation()
+	}
+	d.customValidation.AddRule(rule)
+	return d
+}
+
 // Transform, gelen değeri string → time.Time formatına dönüştürür.
 //
 // Dönüşüm Süreci:
@@ -153,6 +213,8 @@ func (d *DateType) Transform(value any) (any, error) {
 //  2. Değerin time.Time olup olmadığı
 //  3. min() kontrolü
 //  4. max() kontrolü
+//  5. Before() kontrolü
+//  6. After() kontrolü
 //
 // Parametreler:
 //   - field (string): alan adı (path)
@@ -169,7 +231,7 @@ func (d *DateType) Validate(field string, value any, result *core.ValidationResu
 
 	parsedDate, ok := value.(time.Time)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı geçerli bir tarih olmalıdır", d.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyDate, d.GetLabel(field)))
 		return
 	}
 
@@ -183,9 +245,9 @@ func (d *DateType) Validate(field string, value any, result *core.ValidationResu
 	if d.minDateStr != nil {
 		minDate, err := time.Parse(layout, *d.minDateStr)
 		if err != nil {
-			result.AddError(field, fmt.Sprintf("%s için tanımlanan min() kuralı geçersiz formatta", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyDateFormat, fieldName, layout))
 		} else if parsedDate.Before(minDate) {
-			result.AddError(field, fmt.Sprintf("%s alanı %s tarihinden önce olamaz", fieldName, *d.minDateStr))
+			result.AddError(field, i18n.Get(i18n.KeyDateMin, fieldName, *d.minDateStr))
 		}
 	}
 
@@ -193,9 +255,27 @@ func (d *DateType) Validate(field string, value any, result *core.ValidationResu
 	if d.maxDateStr != nil {
 		maxDate, err := time.Parse(layout, *d.maxDateStr)
 		if err != nil {
-			result.AddError(field, fmt.Sprintf("%s için tanımlanan max() kuralı geçersiz formatta", fieldName))
+			result.AddError(field, i18n.Get(i18n.KeyDateFormat, fieldName, layout))
 		} else if parsedDate.After(maxDate) {
-			result.AddError(field, fmt.Sprintf("%s alanı %s tarihinden sonra olamaz", fieldName, *d.maxDateStr))
+			result.AddError(field, i18n.Get(i18n.KeyDateMax, fieldName, *d.maxDateStr))
 		}
+	}
+
+	// Before Date Kontrolü
+	if d.beforeDate != nil {
+		if !parsedDate.Before(*d.beforeDate) {
+			result.AddError(field, i18n.Get(i18n.KeyDateBefore, fieldName, d.beforeDate.Format(layout)))
+		}
+	}
+
+	// After Date Kontrolü
+	if d.afterDate != nil {
+		if !parsedDate.After(*d.afterDate) {
+			result.AddError(field, i18n.Get(i18n.KeyDateAfter, fieldName, d.afterDate.Format(layout)))
+		}
+	}
+
+	if d.customValidation != nil && d.customValidation.HasValidators() {
+		d.customValidation.ValidateSync(field, value, result)
 	}
 }

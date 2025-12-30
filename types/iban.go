@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 	"github.com/biyonik/go-fluent-validator/rules"
 )
 
@@ -29,7 +30,8 @@ import (
 //   - @email   ahmet.altun60@gmail.com
 type IbanType struct {
 	core.BaseType
-	countryCode string
+	countryCode      string
+	customValidation *core.CustomValidation
 }
 
 // Required, alanın boş geçilemeyeceğini belirtir.
@@ -65,6 +67,37 @@ func (i *IbanType) Country(code string) *IbanType {
 	return i
 }
 
+// Custom adds a custom validation function
+func (i *IbanType) Custom(validator func(string) error) *IbanType {
+	if i.customValidation == nil {
+		i.customValidation = core.NewCustomValidation()
+	}
+
+	i.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		strVal, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("value must be string")
+		}
+
+		return validator(strVal)
+	})
+
+	return i
+}
+
+// AddRule adds a custom validation rule
+func (i *IbanType) AddRule(rule core.Rule) *IbanType {
+	if i.customValidation == nil {
+		i.customValidation = core.NewCustomValidation()
+	}
+	i.customValidation.AddRule(rule)
+	return i
+}
+
 // Validate, IBAN alanının geçerliliğini kontrol eder.
 //
 // İşlem sırası:
@@ -84,11 +117,15 @@ func (i *IbanType) Validate(field string, value any, result *core.ValidationResu
 
 	str, ok := value.(string)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı metin tipinde olmalıdır", i.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyString, i.GetLabel(field)))
 		return
 	}
 
 	if !rules.IsValidIBAN(str, i.countryCode) {
-		result.AddError(field, fmt.Sprintf("%s alanı geçerli bir IBAN olmalıdır", i.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyIBAN, i.GetLabel(field)))
+	}
+
+	if i.customValidation != nil && i.customValidation.HasValidators() {
+		i.customValidation.ValidateSync(field, value, result)
 	}
 }

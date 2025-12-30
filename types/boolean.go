@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 )
 
 // -----------------------------------------------------------------------------
@@ -41,6 +42,7 @@ import (
 // -----------------------------------------------------------------------------
 type BooleanType struct {
 	core.BaseType
+	customValidation *core.CustomValidation
 }
 
 // Required, ilgili boolean alanın zorunlu olduğunu işaretler.
@@ -65,11 +67,41 @@ func (b *BooleanType) Default(value bool) *BooleanType {
 	return b
 }
 
+func (b *BooleanType) Custom(validator func(bool) error) *BooleanType {
+	if b.customValidation == nil {
+		b.customValidation = core.NewCustomValidation()
+	}
+
+	b.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		boolVal, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("value must be boolean")
+		}
+
+		return validator(boolVal)
+	})
+
+	return b
+}
+
+func (b *BooleanType) AddRule(rule core.Rule) *BooleanType {
+	if b.customValidation == nil {
+		b.customValidation = core.NewCustomValidation()
+	}
+	b.customValidation.AddRule(rule)
+	return b
+}
+
 // Validate, ilgili alanın doğrulama sürecini yürütür.
 // 1. BaseType doğrulama kurallarını çalıştırır (required, default, label...).
 // 2. Gelen değer nil ise (zorunlu değilse) işlem durdurulur.
 // 3. Gelen değerin gerçek bir boolean olup olmadığı kontrol edilir.
 // 4. Tip uyumsuzluğunda ValidationResult içine kullanıcı dostu bir hata eklenir.
+// 5. Custom validators varsa çalıştırır.
 func (b *BooleanType) Validate(field string, value any, result *core.ValidationResult) {
 	b.BaseType.Validate(field, value, result)
 	if result.HasErrors() {
@@ -82,6 +114,11 @@ func (b *BooleanType) Validate(field string, value any, result *core.ValidationR
 
 	_, ok := value.(bool)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı boolean tipinde olmalıdır", b.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyBoolean, b.GetLabel(field)))
+		return
+	}
+
+	if b.customValidation != nil && b.customValidation.HasValidators() {
+		b.customValidation.ValidateSync(field, value, result)
 	}
 }

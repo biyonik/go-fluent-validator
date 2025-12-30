@@ -185,18 +185,21 @@ func (vs *ValidationSchema) Validate(data map[string]any) *core.ValidationResult
 		typ.Validate(field, transformedData[field], result)
 	}
 
-	// 3) Koşullu şemalar
 	if len(vs.conditionalRules) > 0 {
 		for _, rule := range vs.conditionalRules {
 			val, exists := transformedData[rule.field]
 			if exists && val == rule.expectedValue {
 				subSchema := rule.callback()
-				subResult := subSchema.Validate(transformedData)
+				subResult := subSchema.Validate(data)
 				if subResult.HasErrors() {
 					for f, msgs := range subResult.Errors() {
 						for _, msg := range msgs {
 							result.AddError(f, msg)
 						}
+					}
+				} else {
+					for k, v := range subResult.ValidData() {
+						transformedData[k] = v
 					}
 				}
 			}
@@ -204,11 +207,11 @@ func (vs *ValidationSchema) Validate(data map[string]any) *core.ValidationResult
 	}
 
 	// 4) Cross-field validation
-	if !result.HasErrors() {
-		for _, fn := range vs.crossValidators {
-			if err := fn(transformedData); err != nil {
-				result.AddError("_cross_validation", err.Error())
-			}
+	// Run cross-validation regardless of field-level errors
+	// This ensures important cross-field checks (like password confirmation) always run
+	for _, fn := range vs.crossValidators {
+		if err := fn(transformedData); err != nil {
+			result.AddError("_cross_validation", err.Error())
 		}
 	}
 

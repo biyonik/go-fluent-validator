@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 )
 
 // ObjectType
@@ -27,7 +28,8 @@ import (
 //   - @email   ahmet.altun60@gmail.com
 type ObjectType struct {
 	core.BaseType
-	shape map[string]core.Type
+	shape            map[string]core.Type
+	customValidation *core.CustomValidation
 }
 
 // Required, alanın boş geçilemeyeceğini belirtir.
@@ -60,6 +62,37 @@ func (o *ObjectType) Label(label string) *ObjectType {
 //   - *ObjectType
 func (o *ObjectType) Shape(shape map[string]core.Type) *ObjectType {
 	o.shape = shape
+	return o
+}
+
+// Custom adds a custom validation function
+func (o *ObjectType) Custom(validator func(map[string]any) error) *ObjectType {
+	if o.customValidation == nil {
+		o.customValidation = core.NewCustomValidation()
+	}
+
+	o.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		objVal, ok := value.(map[string]any)
+		if !ok {
+			return fmt.Errorf("value must be object (map[string]any)")
+		}
+
+		return validator(objVal)
+	})
+
+	return o
+}
+
+// AddRule adds a custom validation rule
+func (o *ObjectType) AddRule(rule core.Rule) *ObjectType {
+	if o.customValidation == nil {
+		o.customValidation = core.NewCustomValidation()
+	}
+	o.customValidation.AddRule(rule)
 	return o
 }
 
@@ -119,7 +152,7 @@ func (o *ObjectType) Validate(field string, value any, result *core.ValidationRe
 
 	data, ok := value.(map[string]any)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı nesne (object) tipinde olmalıdır", o.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyObject, o.GetLabel(field)))
 		return
 	}
 
@@ -127,5 +160,9 @@ func (o *ObjectType) Validate(field string, value any, result *core.ValidationRe
 		subValue := data[subField]
 		fullFieldPath := fmt.Sprintf("%s.%s", field, subField)
 		subSchema.Validate(fullFieldPath, subValue, result)
+	}
+
+	if o.customValidation != nil && o.customValidation.HasValidators() {
+		o.customValidation.ValidateSync(field, value, result)
 	}
 }

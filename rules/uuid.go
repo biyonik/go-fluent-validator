@@ -1,6 +1,9 @@
 package rules
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 //
 // -----------------------------------------------------------------------------
@@ -36,7 +39,7 @@ var (
 
 // IsValidUUID
 // -----------------------------------------------------------------------------
-// Verilen string’in geçerli bir UUID olup olmadığını kontrol eder.
+// Verilen string'in geçerli bir UUID olup olmadığını kontrol eder.
 //
 // Parametreler:
 //   - uuid: doğrulanacak UUID stringi
@@ -48,8 +51,11 @@ var (
 // Açıklama:
 //   - Performans için regexler global olarak derlenmiştir
 //   - Versiyon 0 seçilirse, herhangi bir UUID formatı kabul edilir
-//   - PHP portudur, Go'da case-insensitive flag yerine regex küçük harf varsayıyor
+//   - RFC 4122'ye göre UUID'ler case-insensitive'dir, bu yüzden lowercase'e çeviriyoruz
 func IsValidUUID(uuid string, version int) bool {
+	// UUID'ler RFC 4122'ye göre case-insensitive olmalı
+	uuid = strings.ToLower(uuid)
+
 	switch version {
 	case 1:
 		return uuidV1Regex.MatchString(uuid)

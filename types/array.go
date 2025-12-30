@@ -34,6 +34,7 @@ import (
 	"fmt"
 
 	"github.com/biyonik/go-fluent-validator/core"
+	"github.com/biyonik/go-fluent-validator/i18n"
 )
 
 // ArrayType, bir diziyi (array/slice) doğrulamak için kullanılan gelişmiş bir
@@ -41,9 +42,14 @@ import (
 // özellikleri içerir.
 type ArrayType struct {
 	core.BaseType
-	minLength     *int      // Minimum eleman sayısı
-	maxLength     *int      // Maksimum eleman sayısı
-	elementSchema core.Type // Her bir elemanın uyacağı şema
+	minLength        *int      // Minimum eleman sayısı
+	maxLength        *int      // Maksimum eleman sayısı
+	elementSchema    core.Type // Her bir elemanın uyacağı şema
+	customValidation *core.CustomValidation
+	// New validators
+	isUnique         bool
+	containsValue    *any
+	isNotEmpty       bool
 }
 
 // Required, alanın zorunlu olduğunu belirtir.
@@ -107,6 +113,53 @@ func (a *ArrayType) Transform(value any) (any, error) {
 	return slice, nil
 }
 
+func (a *ArrayType) Custom(validator func([]any) error) *ArrayType {
+	if a.customValidation == nil {
+		a.customValidation = core.NewCustomValidation()
+	}
+
+	a.customValidation.AddSync(func(value any) error {
+		if value == nil {
+			return nil
+		}
+
+		arr, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("value must be array")
+		}
+
+		return validator(arr)
+	})
+
+	return a
+}
+
+func (a *ArrayType) AddRule(rule core.Rule) *ArrayType {
+	if a.customValidation == nil {
+		a.customValidation = core.NewCustomValidation()
+	}
+	a.customValidation.AddRule(rule)
+	return a
+}
+
+// Unique ensures all elements in the array are unique
+func (a *ArrayType) Unique() *ArrayType {
+	a.isUnique = true
+	return a
+}
+
+// Contains ensures the array contains a specific value
+func (a *ArrayType) Contains(value any) *ArrayType {
+	a.containsValue = &value
+	return a
+}
+
+// NotEmpty ensures the array is not empty
+func (a *ArrayType) NotEmpty() *ArrayType {
+	a.isNotEmpty = true
+	return a
+}
+
 // Validate, dizinin uzunluk doğrulamasını ve eleman doğrulamasını yapar.
 // Hatalar, `field[0]`, `field[1]` formatında detaylı bir şekilde işlenir.
 func (a *ArrayType) Validate(field string, value any, result *core.ValidationResult) {
@@ -120,17 +173,52 @@ func (a *ArrayType) Validate(field string, value any, result *core.ValidationRes
 
 	slice, ok := value.([]any)
 	if !ok {
-		result.AddError(field, fmt.Sprintf("%s alanı dizi (array) tipinde olmalıdır", a.GetLabel(field)))
+		result.AddError(field, i18n.Get(i18n.KeyArray, a.GetLabel(field)))
 		return
 	}
 
 	fieldName := a.GetLabel(field)
 
 	if a.minLength != nil && len(slice) < *a.minLength {
-		result.AddError(field, fmt.Sprintf("%s alanında en az %d eleman olmalıdır", fieldName, *a.minLength))
+		result.AddError(field, i18n.Get(i18n.KeyMinElements, fieldName, *a.minLength))
 	}
 	if a.maxLength != nil && len(slice) > *a.maxLength {
-		result.AddError(field, fmt.Sprintf("%s alanında en fazla %d eleman olmalıdır", fieldName, *a.maxLength))
+		result.AddError(field, i18n.Get(i18n.KeyMaxElements, fieldName, *a.maxLength))
+	}
+
+	// New validators
+	if a.isNotEmpty && len(slice) == 0 {
+		result.AddError(field, i18n.Get(i18n.KeyNotEmpty, fieldName))
+	}
+
+	if a.isUnique {
+		seen := make(map[string]bool)
+		for i, item := range slice {
+			key := fmt.Sprintf("%v", item)
+			if seen[key] {
+				result.AddError(field, i18n.Get(i18n.KeyUnique, fieldName))
+				break
+			}
+			seen[key] = true
+			_ = i // prevent unused variable warning
+		}
+	}
+
+	if a.containsValue != nil {
+		found := false
+		for _, item := range slice {
+			if fmt.Sprintf("%v", item) == fmt.Sprintf("%v", *a.containsValue) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.AddError(field, i18n.Get(i18n.KeyArrayContains, fieldName, *a.containsValue))
+		}
+	}
+
+	if a.customValidation != nil && a.customValidation.HasValidators() {
+		a.customValidation.ValidateSync(field, value, result)
 	}
 
 	if a.elementSchema != nil {
