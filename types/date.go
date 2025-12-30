@@ -19,7 +19,8 @@ import (
 //   - string veya time.Time değerlerini kabul eder
 //   - Kullanıcı özel tarih formatı belirleyebilir (Go time layout formatı)
 //   - min() ve max() ile tarih aralığı doğrulaması yapılabilir
-//   - Varsayılan format “2006-01-02” olarak ayarlanmıştır
+//   - Before() ve After() ile tarih karşılaştırması yapılabilir
+//   - Varsayılan format "2006-01-02" olarak ayarlanmıştır
 //
 // Bu tip genellikle API validasyonlarında, form verilerinde, DTO modellerinde
 // tarih alanlarının kontrollü ve güvenli bir şekilde işlenmesi için kullanılır.
@@ -31,9 +32,11 @@ import (
 //   - @email   ahmet.altun60@gmail.com
 type DateType struct {
 	core.BaseType
-	format           string  // Beklenen tarih formatı (Go time layout)
-	minDateStr       *string // Minimum tarih sınırı (string formatında)
-	maxDateStr       *string // Maksimum tarih sınırı (string formatında)
+	format           string
+	minDateStr       *string
+	maxDateStr       *string
+	beforeDate       *time.Time
+	afterDate        *time.Time
 	customValidation *core.CustomValidation
 }
 
@@ -103,6 +106,30 @@ func (d *DateType) Min(dateStr string) *DateType {
 //   - *DateType
 func (d *DateType) Max(dateStr string) *DateType {
 	d.maxDateStr = &dateStr
+	return d
+}
+
+// Before, alanın belirtilen tarihten önce olmasını sağlar.
+//
+// Parametreler:
+//   - date (time.Time): Maksimum tarih (bu tarihten önce olmalı)
+//
+// Döndürür:
+//   - *DateType
+func (d *DateType) Before(date time.Time) *DateType {
+	d.beforeDate = &date
+	return d
+}
+
+// After, alanın belirtilen tarihten sonra olmasını sağlar.
+//
+// Parametreler:
+//   - date (time.Time): Minimum tarih (bu tarihten sonra olmalı)
+//
+// Döndürür:
+//   - *DateType
+func (d *DateType) After(date time.Time) *DateType {
+	d.afterDate = &date
 	return d
 }
 
@@ -186,6 +213,8 @@ func (d *DateType) Transform(value any) (any, error) {
 //  2. Değerin time.Time olup olmadığı
 //  3. min() kontrolü
 //  4. max() kontrolü
+//  5. Before() kontrolü
+//  6. After() kontrolü
 //
 // Parametreler:
 //   - field (string): alan adı (path)
@@ -229,6 +258,20 @@ func (d *DateType) Validate(field string, value any, result *core.ValidationResu
 			result.AddError(field, i18n.Get(i18n.KeyDateFormat, fieldName, layout))
 		} else if parsedDate.After(maxDate) {
 			result.AddError(field, i18n.Get(i18n.KeyDateMax, fieldName, *d.maxDateStr))
+		}
+	}
+
+	// Before Date Kontrolü
+	if d.beforeDate != nil {
+		if !parsedDate.Before(*d.beforeDate) {
+			result.AddError(field, i18n.Get(i18n.KeyDateBefore, fieldName, d.beforeDate.Format(layout)))
+		}
+	}
+
+	// After Date Kontrolü
+	if d.afterDate != nil {
+		if !parsedDate.After(*d.afterDate) {
+			result.AddError(field, i18n.Get(i18n.KeyDateAfter, fieldName, d.afterDate.Format(layout)))
 		}
 	}
 

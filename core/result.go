@@ -95,3 +95,18 @@ func (r *ValidationResult) ValidData() map[string]any {
 func (r *ValidationResult) SetValidData(data map[string]any) {
 	r.validData = data
 }
+
+// AllErrors
+// -----------------------------------------------------------------------------
+// Tüm hataları düz bir string slice olarak döndürür.
+// API yanıtlarında veya basit hata listesi gösteriminde kullanışlıdır.
+//
+// Dönüş:
+//   - []string: Tüm hata mesajları
+func (r *ValidationResult) AllErrors() []string {
+	allErrors := make([]string, 0)
+	for _, messages := range r.errors {
+		allErrors = append(allErrors, messages...)
+	}
+	return allErrors
+}

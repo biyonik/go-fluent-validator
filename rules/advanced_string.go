@@ -1,6 +1,9 @@
 package rules
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 //
 // -----------------------------------------------------------------------------
@@ -47,9 +50,14 @@ import "regexp"
 //   - false → Hiç Türkçe karakter yok
 //
 // Not: regexp.MatchString kullanılarak hızlı bir tarama yapılır.
-func HasTurkishChars(text string) bool {
-	match, _ := regexp.MatchString(`[çÇğĞıİöÖşŞüÜ]`, text)
-	return match
+func HasTurkishChars(str string) bool {
+	turkishChars := "şŞğĞüÜöÖçÇıİ"
+	for _, char := range str {
+		if strings.ContainsRune(turkishChars, char) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsValidDomain

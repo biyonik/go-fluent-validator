@@ -85,3 +85,31 @@ func WithMinUniqueChars(count int) PasswordOption {
 		r.MinUniqueChars = count
 	}
 }
+
+// WithRejectCommon, yaygın şifrelerin reddedilmesini ayarlar.
+func WithRejectCommon(reject bool) PasswordOption {
+	return func(r *rules.PasswordRules) {
+		r.DisallowCommon = reject
+	}
+}
+
+// WithCheckKeyboardPatterns, klavye dizilimlerinin kontrolünü ayarlar.
+func WithCheckKeyboardPatterns(check bool) PasswordOption {
+	return func(r *rules.PasswordRules) {
+		r.DisallowKeyboard = check
+	}
+}
+
+// WithMaxRepeatingChars, maksimum tekrar eden karakter sayısını ayarlar.
+func WithMaxRepeatingChars(count int) PasswordOption {
+	return func(r *rules.PasswordRules) {
+		r.MaxRepeatingChars = count
+	}
+}
+
+// WithMinEntropy, minimum şifre entropisi (karmaşıklık) ayarlar.
+func WithMinEntropy(entropy float64) PasswordOption {
+	return func(r *rules.PasswordRules) {
+		r.MinEntropy = entropy
+	}
+}

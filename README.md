@@ -41,7 +41,7 @@ Not only does it validate your data, but it also **transforms and sanitizes** it
 - **🧹 Built-in Sanitization**: Transform and clean data before validation (XSS protection, HTML stripping, emoji filtering, etc.)
 - **🔄 Cross-Field Validation**: Validate interdependent fields (password confirmation, date ranges, etc.)
 - **⚡ Conditional Rules**: Apply validation rules dynamically based on other field values using `.When()`
-- **🌍 Multi-language Support**: Built-in localization for English, Turkish, and German
+- **🌍 Multi-language Support**: Built-in localization for 11 Languages
 - **📦 Zero Dependencies**: Uses only Go standard library
 - **🎨 Custom Validators**: Implement your own validation logic easily
 - **🔍 Rich Rule Set**: 50+ built-in validation rules
@@ -1264,7 +1264,6 @@ schema.When("accountType", "business", func() v.Schema {
 
 - [ ] Support for async validators
 - [ ] Schema composition and reuse helpers
-- [ ] More localization (French, Spanish, Italian)
 - [ ] JSON Schema export
 - [ ] OpenAPI schema generation
 - [ ] Form generation from schemas
@@ -1290,7 +1289,7 @@ Sadece doğrulamakla kalmaz, aynı zamanda veriyi **dönüştürür ve temizler*
 - **🧹 Yerleşik Temizleme**: Doğrulama öncesi veri dönüştürme (XSS koruması, HTML temizleme, emoji filtreleme vb.)
 - **🔄 Çapraz Alan Doğrulama**: Birbirine bağımlı alanları doğrulayın (şifre onayı, tarih aralıkları vb.)
 - **⚡ Koşullu Kurallar**: `.When()` kullanarak diğer alan değerlerine göre dinamik kurallar uygulayın
-- **🌍 Çoklu Dil Desteği**: İngilizce, Türkçe ve Almanca için yerleşik yerelleştirme
+- **🌍 Çoklu Dil Desteği**: 11 dilde yerleşik mesaj desteği
 - **📦 Bağımlılık Yok**: Sadece Go standart kütüphanesi kullanılır
 - **🎨 Özel Doğrulayıcılar**: Kendi doğrulama mantığınızı kolayca uygulayın
 - **🔍 Zengin Kural Seti**: 50+ yerleşik doğrulama kuralı
